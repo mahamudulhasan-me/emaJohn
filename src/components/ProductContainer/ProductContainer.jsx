@@ -11,12 +11,19 @@ import {
 const ProductContainer = () => {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [productPerPage, setProductPerPage] = useState(9);
 
   const { totalProducts } = useLoaderData();
-  const productPerPage = 10;
+
   const totalPages = Math.ceil(totalProducts / productPerPage);
   const pageNumbers = [...Array(totalPages).keys()];
 
+  const options = [6, 12, 24];
+  const handleSelectChange = (e) => {
+    setProductPerPage(parseInt(e.target.value));
+    setCurrentPage(0);
+  };
   const addToCart = (product) => {
     // const newCart = [...cart, product];
     // setCart(newCart);
@@ -34,25 +41,50 @@ const ProductContainer = () => {
     addLocalStorage(product._id);
   };
 
+  // useEffect(() => {
+  //   fetch(
+  //     `http://localhost:4040/products?page=${currentPage}&limit=${productPerPage}`
+  //   )
+  //     .then((response) => response.json())
+  //     .then((products) => setProducts(products));
+  // }, [currentPage, productPerPage]);
+
   useEffect(() => {
-    fetch("http://localhost:4040/products")
-      .then((response) => response.json())
-      .then((products) => setProducts(products));
-  }, []);
+    const fetchProduct = async () => {
+      const response = await fetch(
+        `http://localhost:4040/products?page=${currentPage}&limit=${productPerPage}`
+      );
+      const data = await response.json();
+      setProducts(data);
+    };
+    fetchProduct();
+  }, [currentPage, productPerPage]);
 
   useEffect(() => {
     const storedCart = getProductFromDB();
-    const saveCart = [];
-    for (const id in storedCart) {
-      const addedProduct = products.find((pd) => pd._id == id);
-      if (addedProduct) {
-        const quantity = storedCart[id];
-        addedProduct.quantity = quantity;
-        saveCart.push(addedProduct);
-      }
-    }
-    setCart(saveCart);
-  }, [products]);
+    const ids = Object.keys(storedCart);
+
+    fetch(`http://localhost:4040/productByIds`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(ids),
+    })
+      .then((response) => response.json())
+      .then((cartProducts) => {
+        const saveCart = [];
+        for (const id in storedCart) {
+          const addedProduct = cartProducts.find((pd) => pd._id == id);
+          if (addedProduct) {
+            const quantity = storedCart[id];
+            addedProduct.quantity = quantity;
+            saveCart.push(addedProduct);
+          }
+        }
+        setCart(saveCart);
+      });
+  }, []);
   const clearCart = () => {
     setCart([]);
     clearLocalStorage();
@@ -74,12 +106,34 @@ const ProductContainer = () => {
 
         <Cart clearCart={clearCart} cart={cart} />
       </div>
+
       <div className="text-center my-4">
-        {pageNumbers.map((number, index) => (
-          <button className="btn btn-outline ml-2" key={index}>
+        <p>
+          current Page: {currentPage} Product Per Page: {productPerPage}
+        </p>
+        {pageNumbers.map((number) => (
+          <button
+            onClick={() => setCurrentPage(number)}
+            className={`btn ml-2 ${
+              currentPage === number ? "btn-warning" : "btn-outline"
+            }  `}
+            key={number}
+          >
             {number}
           </button>
         ))}
+        <select
+          name=""
+          id=""
+          onChange={handleSelectChange}
+          className="select select-warning ml-5"
+        >
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       </div>
     </>
   );
