@@ -1,6 +1,6 @@
 const express = require("express");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const mainRoute = express.Router();
 
@@ -27,8 +27,25 @@ async function run() {
 
     // get product
     mainRoute.get("/products", async (req, res) => {
-      const product = await productCollection.find().toArray();
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 9;
+      const skip = page * limit;
+      const product = await productCollection
+        .find()
+        .skip(skip)
+        .limit(limit)
+        .toArray();
       res.send(product);
+    });
+
+    // set product by id
+    mainRoute.post("/productByIds", async (req, res) => {
+      const productIds = req.body;
+      const objectIds = productIds.map((id) => new ObjectId(id));
+      const query = { _id: { $in: objectIds } };
+      const result = await productCollection.find(query).toArray();
+      res.send(result);
+      console.log(result);
     });
     // get total products
     mainRoute.get("/totalProducts", async (req, res) => {
